@@ -63,7 +63,7 @@ void nand_init(void) {
 void nand_read_block(unsigned int sector, unsigned int addr) {
 	uint32_t val;
 	printf("NAND: going to read sector %d @ addr = 0x%08X\n", sector, addr);
-        memset(0, 0, 0x400); // clear RAM @ 0
+        memset((void*)temp_buf, 0, 0x400); // clear temp_buf
 	W32(0x1C03024, 0xC000FF);          // CM
         do {
                 val = R32(0x1C03004);      // ST
