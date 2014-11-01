@@ -125,6 +125,11 @@ void nand_read_block(unsigned int real_addr, bool syndrome) {
 	} while (1);
 
 	uint32_t page = real_addr / (8 * 1024);
+	if (page > 0xFFFF) {
+		// TODO: currently this is not supported
+		printf("Reading from address >= %08X is not allowed.\n", 0xFFFF * 8 * 1024);
+		return;
+	}
 	uint32_t shift = real_addr % (8*1024);
 	uint32_t rseed;
 	rseed = syndrome ? 0x4A80 : random_seed[page % 128];
@@ -136,7 +141,7 @@ void nand_read_block(unsigned int real_addr, bool syndrome) {
 	uint32_t addr = (page << 16) | shift;
 
 	val = R32(NANDFLASHC_BASE + NANDFLASHC_CTL);
-	W32(NANDFLASHC_BASE + NANDFLASHC_CTL, val | 0x4001); // TODO
+	W32(NANDFLASHC_BASE + NANDFLASHC_CTL, val | 0x4001);
 	W32(NANDFLASHC_BASE + NANDFLASHC_SPARE_AREA, 0x400);
 
 	// DMAC
