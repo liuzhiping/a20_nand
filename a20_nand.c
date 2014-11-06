@@ -114,7 +114,7 @@ const uint16_t random_seed[128] = {
 };
 
 // read 0x400 bytes from real_addr to temp_buf
-void nand_read_block(unsigned int real_addr, bool syndrome) {
+uint32_t nand_read_block(unsigned int real_addr, bool syndrome) {
 	uint32_t val;
 	memset((void*)&temp_buf, 0, 0x400); // clear temp_buf
 	W32(NANDFLASHC_BASE + NANDFLASHC_CMD, 0xC000FF);
@@ -133,7 +133,7 @@ void nand_read_block(unsigned int real_addr, bool syndrome) {
 	uint32_t shift = real_addr % (8*1024);
 	uint32_t rseed;
 	rseed = syndrome ? 0x4A80 : random_seed[page % 128];
-	W32(0x1C03034, (rseed << 16) | 0x0200); // ECC_CTL, randomization
+	W32(NANDFLASHC_BASE + NANDFLASHC_ECC_CTL, (rseed << 16) | 0x1201); // ECC_CTL, randomization, ecc
 	if (syndrome) {
 		// shift every 1kB in syndrome
 		shift += (shift / 0x400) * 0x2e;
@@ -170,16 +170,22 @@ void nand_read_block(unsigned int real_addr, bool syndrome) {
 		if (!(val & 0x80000000)) break; // make sure cmd is finished
 		udelay(1000);
 	} while (1);
+
+	return R32(NANDFLASHC_BASE + NANDFLASHC_ECC_ST);
 }
 
 void nand_read(uint32_t addr, void *dest, int count) {
 	uint32_t dst;
 	uint32_t adr = addr;
+	uint32_t ecc_errors = 0;
 	memset((void*)dest, 0x0, count); // clean destination memory
 	for (dst = (uint32_t)dest; dst < ((uint32_t)dest+count); dst+=0x400) {
-		nand_read_block(adr, adr < 0x400000); // if < 0x400000 then syndrome read
+		if (nand_read_block(adr, adr < 0x400000)) { // if < 0x400000 then syndrome read
+			ecc_errors++;
+		}
 		memcpy((void*)dst, (void*)&temp_buf, 0x400);
 		adr += 0x400;
 	}
+	printf("ECC errors: %d\n", ecc_errors);
 }
 
